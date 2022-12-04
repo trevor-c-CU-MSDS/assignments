@@ -1,0 +1,93 @@
+---
+title: "DTSA5301_Wk3_NYPD Shooting Incident"
+author: "Trevor C"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+sessionInfo()
+```
+
+```{r, libraries, include=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+## NYPD Shooting Incidents
+
+This is an R Markdown document to analyze the public government data on NYPD shooting incidents via this [link]("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"). **With this data, we will try to see if we can attain actionable insights in order to PREVENT/REDUCE shootings in the future.** 
+
+The list dates back to 2006 through the end of the previous calendar year. It breaks down notable information such as time and date of shooting, victim and perpetrator race, age, and sex, etc. There are a number of parameters that are missing data or are not needed at this time for analysis. We will get rid of them here. Also, any 'na' from JURISDICTION_CODE have been omitted. A summary of the data is shown.
+
+
+```{r import_data, echo=FALSE}
+url <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+shooting_data <- read_csv(url)
+
+shooting_data_tidy <- shooting_data %>%
+  select(-c(Longitude, Latitude, Lon_Lat)) %>%
+  mutate(OCCUR_DATE = mdy(OCCUR_DATE)) %>%
+  drop_na(JURISDICTION_CODE)
+summary(shooting_data_tidy)
+```
+
+## Mapping out and modeling where shootings occur
+
+Although shootings can occur anywhere at anytime, there are places more likely for these incidents to occur than other locations. From the data set, we can extract the locations of such shootings and plot them on an X-Y axis. This then leads to questions such as: Can we use this data to predict where future shootings might occur? We might be able to answer this question by grouping or binning the incidences together instead of plotting each individual data point. We can adjust the bin size: decrease the size for a more generalized prediction, or increase for a more fine-tuned prediction. By thresholding, we can determine the areas that are more prevalent to shootings, and perhaps necessary resources to prevent future shootings from occurring could be focused there.
+```{r map_data}
+Y_coord <- shooting_data[['Y_COORD_CD']]
+X_coord <- shooting_data[['X_COORD_CD']]
+
+df_coord = data.frame(X_coord,Y_coord)
+ggplot(df_coord, aes(X_coord,Y_coord))+geom_point(col='blue')+ggtitle('Location of Shootings')
+
+bins = 25
+total_shootings = nrow(df_coord)
+grouped_plots <- ggplot(df_coord, aes(X_coord,Y_coord))+geom_bin_2d(bins = bins)+ggtitle('Likelihood of Next Shootings')+stat_bin2d(breaks=c(-1:total_shootings))
+grouped_plots_data <- ggplot_build(grouped_plots)$data[[1]]
+grouped_plots
+```
+
+## Comparing races of perpetrator and victim 
+
+In addition to seeing where the shootings take place, we can analyze the data set again to see who have been involved. For each incident, the race of both perpetrator and victim are listed, and we can total all victims and perpetrators by race. From this, we see which races are most affected, and therefore we can use this analysis to concentrate resources to those people to help them avoid shooting incidences in the future. HOWEVER, trying to predict this kind of event from race alone is extremely shortsighted; race is NOT the sole factor determining who is a perpetrator and/or victim, rather you must take into account social, economic, and livelihood factors and pressures.
+
+```{r perp_victim_comparison}
+table_race_victim <- table(shooting_data_tidy['VIC_RACE'])
+df_race_victim <- data.frame(table_race_victim)
+colnames(df_race_victim) <- c('Race', 'Victims')
+
+table_race_perp <- table(shooting_data_tidy['PERP_RACE'])
+df_race_perp <- data.frame(table_race_perp)
+colnames(df_race_perp) <- c('Race', 'Perps')
+
+df_race <- inner_join(df_race_victim, df_race_perp, by = "Race") %>% 
+  pivot_longer(cols=c('Victims', 'Perps'), names_to = 'variable', values_to = 'Frequency')
+
+ggplot(df_race, aes(x=Race, y=Frequency, fill=variable)) +
+  geom_bar(stat='identity', position='dodge')+ggtitle("Races of Victims and Perpetrators")+labs(fill="Race")+theme(axis.text.x=element_text(angle=90, vjust=0.5, hjust=1))
+
+
+race_perp_percentage <- df_race_perp[2]/sum(df_race_perp[2])*100
+df_race_perp_percentage <- data.frame(df_race_perp[1],race_perp_percentage)
+colnames(df_race_perp_percentage) <-c('Race', 'Percent_of_All_Perps')
+
+race_vic_percentage <- df_race_victim[2]/sum(df_race_victim[2])*100
+df_race_victim_percentage <- data.frame(df_race_victim[1], race_vic_percentage)
+colnames(df_race_victim_percentage) <-c('Race', 'Percent_of_All_Victims')
+
+df_race_percentage <- inner_join(df_race_victim_percentage, df_race_perp_percentage, by="Race") %>%
+  pivot_longer(cols=c('Percent_of_All_Victims', 'Percent_of_All_Perps'), names_to = 'variable', values_to='Frequency')
+
+ggplot(df_race_percentage, aes(x=Race, y=Frequency, fill=variable)) + 
+  geom_bar(stat='identity', position='dodge')+ggtitle("Races of Victims and Perpetrators as Percentage")+labs(fill="Race")+theme(axis.text.x=element_text(angle=90, vjust=0.5, hjust=1))
+
+```
+
+## Conclusion
+
+Here we show that we are able to locate where all shootings occur. In addition, we also show how race compares between perpetrators and victims. It was interesting to analyze the location and **ONE** human factor of these events. With the location data, we are able to bin the shootings together to get a more macroscopic view of most affected areas. This suggests that these areas are more likely to have a shooting occur in the future. With the races compared, we see which people are more involved in these events. However, **race alone is not sufficient enough for actionable insights**, and more factors need to be considered. The goal of this analysis was to determine if we can predict where resources need to be diverted (financial assistance, mental health, etc.), but with taking  so few factors into consideration, this creates a blatant bias in profiling. More data is needed--expanding outside the New York area-- and further analysis is required.
