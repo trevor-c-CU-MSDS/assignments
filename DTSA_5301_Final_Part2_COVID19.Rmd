@@ -3,8 +3,8 @@ title: "Covid19_data"
 author: "TC"
 date: "`r Sys.Date()`"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -15,7 +15,7 @@ library(lubridate)
 ```
 
 ## Setup
-Make sure to library in `library(tidyverse)` in the console.
+
 [Data from this link.](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series)
 
 ```{r import_data, message = FALSE}
@@ -33,7 +33,8 @@ US_deaths <- read_csv(urls[4])
 global_recovered <- read_csv(urls[5])
 ```
 
-# Tidy up data
+## Tidy up data
+
 Tidying and reformatting are needed. But in particular, we will be focusing on reported cases, reported deaths, and reported recovered. Most notably, in the recovered data, all data seems to have stopped being recorded on the date of 2021-08-05 for all countries. This could be due to a lack of data, but also further research tells us that the first vaccine was released around this time. So there is a chance that the researchers stopped recording recovered cases due to this.
 
 ```{r tidy_data, message = TRUE}
@@ -90,7 +91,8 @@ global <- global %>%
 
 ```
 
-# Visualizing data
+## Visualizing data
+
 Looking at this data globally is too much to absorb all at once (see All cases worldwide), so we shall focus on the United Kingdom. Plotted are the prognosis as a percentage of reported cases. One would assume that the total recovered and total deaths would add up to total cases, but it is evident that the sum falls short. This is probably a result of incomplete data, subjects not following up with their prognosis, or could even be due to entities not faithfully reporting all deaths and recovered cases.
 
 ```{r visualize_data}
@@ -156,6 +158,7 @@ ggplot(UK_total_long, aes(x=Province_State, y=percentage, fill=category)) +
 ```
 
 ## Modeling data
+
 Here we try to see if we can predict rate of recovery from global data. We test to see if a linear relationship can be achieved between reported cases and recovered cases. Then, we create a model and plot its results alongside actual data to see its accuracy. Interestingly, we see that the model (red) is close to the actual data, but does deviate as more cases were reported.
 
 ```{r modeling_data}
@@ -171,3 +174,7 @@ global_w_pred %>% ggplot() +
   labs(color = "Legend") +
   labs(title = str_c("Prediction of recovered cases globally"), y=NULL)
 ```
+
+## Conclusion & Biases
+
+In conclusion, we were able to use the reported data to see how many COVID cases were reported, how many deaths and how many patients recovered. Additionally, we were able to use this data to find a correlation between recovered cases and reported cases, and then created a linear model represent that pattern. Interestingly, what we saw is that globally it seemed that there were more recovery than predicted. This however could be a bias of reported data, because some patients might not have followed up with their prognosis, there might not have been a good way to track recovery period, etc. I believe that the bias would come from how the data was collected and not the analysis.
